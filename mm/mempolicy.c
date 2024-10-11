@@ -694,7 +694,9 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
 	.test_walk		= queue_pages_test_walk,
 };
 
+
 /*
+遍历页表收集被迁移的页面
  * Walk through page tables and collect pages to be migrated.
  *
  * If pages found in a given range are on a set of nodes (determined by
@@ -709,8 +711,7 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
  *         memory range specified by nodemask and maxnode points outside
  *         your accessible address space (-EFAULT)
  */
-static int
-queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+static int queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		nodemask_t *nodes, unsigned long flags,
 		struct list_head *pagelist)
 {
