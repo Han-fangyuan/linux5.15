@@ -326,6 +326,7 @@ struct lruvec {
 /* LRU Isolation modes. */
 typedef unsigned __bitwise isolate_mode_t;
 
+//fangyuan:zone水位线
 enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
@@ -393,8 +394,12 @@ struct per_cpu_nodestat {
 #endif /* !__GENERATING_BOUNDS.H */
 
 enum zone_type {
-	/*
-	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
+	/*fangyuan:zone_type
+	ZONE_DMA 和 ZONE_DMA32 用于在某些外围设备无法对所有可寻址内存（ZONE_NORMAL）进行 DMA 时使用。
+在某些架构中，这个区域覆盖整个 32 位地址空间时使用 ZONE_DMA32。对于 DMA 地址限制较小的情况，ZONE_DMA 被保留。
+这种区分很重要，因为当定义了 ZONE_DMA32 时，假定使用 32 位的 DMA 掩码。
+某些 64 位平台可能需要同时支持这两个区域，因为它们支持具有不同 DMA 地址限制的外围设备。
+ * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
 	 * to DMA to all of the addressable memory (ZONE_NORMAL).
 	 * On architectures where this area covers the whole 32 bit address
 	 * space ZONE_DMA32 is used. ZONE_DMA is left for the ones with smaller
@@ -406,27 +411,54 @@ enum zone_type {
 #ifdef CONFIG_ZONE_DMA
 	ZONE_DMA,
 #endif
+
 #ifdef CONFIG_ZONE_DMA32
 	ZONE_DMA32,
 #endif
+
+
 	/*
+	某些 DMA 设备具有地址限制，可能无法访问整个物理地址空间
+	对于支持更广泛内存访问的 DMA 设备，可以直接使用 ZONE_NORMAL 中的内存进行 DMA 操作
+	 ZONE_NORMAL 是系统中可寻址的常规内存区域，当 DMA 设备没有地址范围的限制时，可以直接对 ZONE_NORMAL 进行 DMA 操作
 	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
 	 * performed on pages in ZONE_NORMAL if the DMA devices support
 	 * transfers to all addressable memory.
 	 */
 	ZONE_NORMAL,
+
+
 #ifdef CONFIG_HIGHMEM
 	/*
-	 * A memory area that is only addressable by the kernel through
-	 * mapping portions into its own address space. This is for example
-	 * used by i386 to allow the kernel to address the memory beyond
-	 * 900MB. The kernel will set up special mappings (page
-	 * table entries on i386) for each page that the kernel needs to
-	 * access.
+	这是一个只能通过将部分内存映射到内核自己的地址空间来进行访问的内存区域。
+	例如，在 i386 架构上，这种方式用于让内核能够访问超过 900MB 的内存。
+	内核会为每个需要访问的页面设置特殊的映射（在 i386 上是通过页表项实现）。
+	A memory area that is only addressable by the kernel through mapping portions into its own address space. 
+	This is for example used by i386 to allow the kernel to address the memory beyond 900MB. 
+	The kernel will set up special mappings (page table entries on i386) for each page 
+	that the kernel needs to access.
 	 */
 	ZONE_HIGHMEM,
 #endif
+
+
 	/*
+	ZONE_MOVABLE 类似于 ZONE_NORMAL，不同之处在于它包含可移动的页面，以下列出了一些特殊的例外情况。
+	ZONE_MOVABLE 的主要用途是增加内存下线/卸载的成功几率，并局部限制不可移动的分配，例如增加透明大页（THP）或大页的数量。
+	值得注意的特殊情况包括：
+1. 固定页面：对可移动页面的（长期）固定可能会使这些页面本质上变得不可移动。
+因此，我们不允许在 ZONE_MOVABLE 中长期固定页面。当页面被固定并发生缺页时，它们会来自于正确的区域。
+然而，仍然有可能在固定时，地址空间中已有 ZONE_MOVABLE 中的页面（即用户在固定之前已访问该内存）。
+在这种情况下，我们会将它们迁移到其他区域。如果迁移失败，则固定操作失败。
+2. 内存块分配：在 kernelcore/movablecore 设置下，启动后可能会出现 ZONE_MOVABLE 包含不可移动分配的情况。此时内存下线和分配会提前失败。
+3. 内存空洞：kernelcore/movablecore 设置下，在极少数情况下，ZONE_MOVABLE 可能在启动后包含内存空洞，例如某些部分内存段只有部分被填充时。此时内存下线和分配会提前失败。
+4. PG_hwpoison 页面：虽然中毒的页面在内存下线时可以跳过，但这些页面无法被分配。
+5. 不可移动的 PG_offline 页面：在虚拟化环境中，热插拔的内存块可能只有部分被伙伴系统管理（例如，通过 XEN-balloon、Hyper-V balloon、virtio-mem）。未被伙伴系统管理的部分是不可移动的 PG_offline 页面。在某些情况下（如 virtio-mem），这些页面在内存下线时可以跳过，但不能被移动或分配。这些技术可能会使用 alloc_contig_range() 来再次隐藏以前暴露给伙伴系统的页面（例如，在 virtio-mem 中实现某种内存卸载）。
+6. ZERO_PAGE(0)：kernelcore/movablecore 设置可能导致在不同平台上分配方式不同的 ZERO_PAGE(0) 最终出现在可移动区域。ZERO_PAGE(0) 无法被迁移。
+7. 内存热插拔：在使用 memmap_on_memory 并将内存上线到 MOVABLE 区域时，vmemmap 页面也会放置在这个区域中。这些页面无法真正地移动，因为它们是自存储在该范围内的，但当该范围即将下线时，它们被视为可移动的。
+
+总体来说，不应该有会降低内存下线效果的不可移动分配出现在 ZONE_MOVABLE 中。分配器（如 alloc_contig_range()）必须预料到 ZONE_MOVABLE 中的页面迁移可能会失败（即使 has_unmovable_pages() 表明没有不可移动的页面，也可能有误判）。
+
 	 * ZONE_MOVABLE is similar to ZONE_NORMAL, except that it contains
 	 * movable pages with few exceptional cases described below. Main use
 	 * cases for ZONE_MOVABLE are to make memory offlining/unplug more
@@ -476,6 +508,8 @@ enum zone_type {
 	 * there can be false negatives).
 	 */
 	ZONE_MOVABLE,
+
+
 #ifdef CONFIG_ZONE_DEVICE
 	ZONE_DEVICE,
 #endif
@@ -789,23 +823,18 @@ struct deferred_split {
 };
 #endif
 
-/*
- * On NUMA machines, each NUMA node would have a pg_data_t to describe
- * it's memory layout. On UMA machines there is a single pglist_data which
- * describes the whole memory.
- *
- * Memory statistics and page replacement data structures are maintained on a
- * per-zone basis.
+/*fangyuan:struct pglist_data
+在NUMA机器上，每个NUMA节点都有一个 `pg_data_t` 来描述其内存布局。在UMA机器上，只有一个 `pglist_data` 来描述整个内存。
+内存统计和页面替换的数据结构是基于每个区域（zone）维护的。
  */
 typedef struct pglist_data {
-	/*
-	 * node_zones contains just the zones for THIS node. Not all of the
-	 * zones may be populated, but it is the full list. It is referenced by
-	 * this node's node_zonelists as well as other node's node_zonelists.
-	 */
+	/*fangyuan:
+	`node_zones` 仅包含此节点的区域（zones）。并非所有区域都已填充，但它是完整的列表。
+	它被此节点的 `node_zonelists` 以及其他节点的 `node_zonelists` 引用。 */
 	struct zone node_zones[MAX_NR_ZONES];
 
-	/*
+	/*`node_zonelists` 包含对所有节点中所有内存区域（zones）的引用
+	通常，最前面的内存区域将是对当前节点的 `node_zones` 的引用。
 	 * node_zonelists contains references to all zones in all nodes.
 	 * Generally the first zones will be references to this node's
 	 * node_zones.
@@ -819,30 +848,28 @@ typedef struct pglist_data {
 	struct page_ext *node_page_ext;
 #endif
 #endif
+
 #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
-	/*
-	 * Must be held any time you expect node_start_pfn,
-	 * node_present_pages, node_spanned_pages or nr_zones to stay constant.
-	 * Also synchronizes pgdat->first_deferred_pfn during deferred page
-	 * init.
-	 *
-	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
-	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
-	 * or CONFIG_DEFERRED_STRUCT_PAGE_INIT.
-	 *
-	 * Nests above zone->lock and zone->span_seqlock
-	 */
+/*
+ * 当你希望 `node_start_pfn`、`node_present_pages`、`node_spanned_pages` 或 `nr_zones` 保持不变时，必须持有该锁。
+ * 还用于在延迟页面初始化期间同步 `pgdat->first_deferred_pfn`。
+ *
+ * 提供了 `pgdat_resize_lock()` 和 `pgdat_resize_unlock()` 用于操作 `node_size_lock`，而无需检查 `CONFIG_MEMORY_HOTPLUG` 或 `CONFIG_DEFERRED_STRUCT_PAGE_INIT`。
+ *
+ * 在 `zone->lock` 和 `zone->span_seqlock` 之上嵌套。
+ */
+
 	spinlock_t node_size_lock;
 #endif
+
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
-	unsigned long node_spanned_pages; /* total size of physical page
-					     range, including holes */
+	unsigned long node_spanned_pages; /* total size of physical page range, including holes */
 	int node_id;
 	wait_queue_head_t kswapd_wait;
 	wait_queue_head_t pfmemalloc_wait;
-	struct task_struct *kswapd;	/* Protected by
-					   mem_hotplug_begin/end() */
+	//fangyuan:每一个node都有一个kswapd进程
+	struct task_struct *kswapd;	/* Protected by mem_hotplug_begin/end() */
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 
@@ -855,9 +882,9 @@ typedef struct pglist_data {
 	struct task_struct *kcompactd;
 	bool proactive_compact_trigger;
 #endif
+
 	/*
-	 * This is a per-node reserve of pages that are not available
-	 * to userspace allocations.
+	 * This is a per-node reserve of pages that are not available to userspace allocations.
 	 */
 	unsigned long		totalreserve_pages;
 
@@ -886,11 +913,9 @@ typedef struct pglist_data {
 
 	/* Fields commonly accessed by the page reclaim scanner */
 
-	/*
-	 * NOTE: THIS IS UNUSED IF MEMCG IS ENABLED.
-	 *
-	 * Use mem_cgroup_lruvec() to look up lruvecs.
-	 */
+	/*fangyuan: struct pglist_data
+	如果使用了memcg这个字段不被使用
+	如果启用了 memcg，应该使用函数 mem_cgroup_lruvec() 来查找或获取 lruvecs */
 	struct lruvec		__lruvec;
 
 	unsigned long		flags;
@@ -946,8 +971,7 @@ enum meminit_context {
 	MEMINIT_HOTPLUG,
 };
 
-extern void init_currently_empty_zone(struct zone *zone, unsigned long start_pfn,
-				     unsigned long size);
+extern void init_currently_empty_zone(struct zone *zone, unsigned long start_pfn, unsigned long size);
 
 extern void lruvec_init(struct lruvec *lruvec);
 

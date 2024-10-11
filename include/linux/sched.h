@@ -720,6 +720,7 @@ struct kmap_ctrl {
 #endif
 };
 
+//fangyuan : 进程描述符task_struct
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
@@ -1231,8 +1232,8 @@ struct task_struct {
 #ifdef CONFIG_NUMA
 	/* Protected by alloc_lock: */
 	struct mempolicy		*mempolicy;
-	short				il_prev;
-	short				pref_node_fork;
+	short				il_prev;//fangyuan:记录interleave上一个节点
+	short				pref_node_fork;//fangyuan:进程首选NUMA节点，在进程fork时【在fork时，在哪个NUMA节点分配初始内存】
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 	int				numa_scan_seq;

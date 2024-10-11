@@ -18,7 +18,11 @@
 
 struct mm_struct;
 
-#ifdef CONFIG_NUMA
+
+//fangyuan:CONFIG_NUMA才有mempolicy结构体
+
+//先注释一下，看着方便
+//#ifdef CONFIG_NUMA
 
 /*
  * Describe a memory policy.
@@ -126,16 +130,12 @@ struct shared_policy {
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst);
 void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
-int mpol_set_shared_policy(struct shared_policy *info,
-				struct vm_area_struct *vma,
-				struct mempolicy *new);
+int mpol_set_shared_policy(struct shared_policy *info,struct vm_area_struct *vma,struct mempolicy *new);
 void mpol_free_shared_policy(struct shared_policy *p);
-struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
-					    unsigned long idx);
+struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx);
 
 struct mempolicy *get_task_policy(struct task_struct *p);
-struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
-		unsigned long addr);
+struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,unsigned long addr);
 bool vma_policy_mof(struct vm_area_struct *vma);
 
 extern void numa_default_policy(void);
@@ -143,12 +143,9 @@ extern void numa_policy_init(void);
 extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new);
 extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
 
-extern int huge_node(struct vm_area_struct *vma,
-				unsigned long addr, gfp_t gfp_flags,
-				struct mempolicy **mpol, nodemask_t **nodemask);
+extern int huge_node(struct vm_area_struct *vma,unsigned long addr, gfp_t gfp_flags,struct mempolicy **mpol, nodemask_t **nodemask);
 extern bool init_nodemask_of_mempolicy(nodemask_t *mask);
-extern bool mempolicy_in_oom_domain(struct task_struct *tsk,
-				const nodemask_t *mask);
+extern bool mempolicy_in_oom_domain(struct task_struct *tsk,const nodemask_t *mask);
 extern nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy);
 
 static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
@@ -157,19 +154,15 @@ static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
 
 	return policy_nodemask(gfp, mpol);
 }
-
 extern unsigned int mempolicy_slab_node(void);
-
 extern enum zone_type policy_zone;
-
 static inline void check_highest_zone(enum zone_type k)
 {
 	if (k > policy_zone && k != ZONE_MOVABLE)
 		policy_zone = k;
 }
 
-int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
-		     const nodemask_t *to, int flags);
+int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,  const nodemask_t *to, int flags);
 
 
 #ifdef CONFIG_TMPFS
@@ -190,6 +183,7 @@ static inline bool mpol_is_preferred_many(struct mempolicy *pol)
 {
 	return  (pol->mode == MPOL_PREFERRED_MANY);
 }
+
 
 
 #else

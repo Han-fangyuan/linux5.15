@@ -5337,11 +5337,9 @@ failed:
 }
 EXPORT_SYMBOL_GPL(__alloc_pages_bulk);
 
-/*
- * This is the 'heart' of the zoned buddy allocator.
- */
-struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
-							nodemask_t *nodemask)
+
+//fangyuan:zone伙伴系统的核心
+struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,nodemask_t *nodemask)
 {
 	struct page *page;
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
@@ -8411,8 +8409,7 @@ static void __setup_per_zone_wmarks(void)
 }
 
 /**
- * setup_per_zone_wmarks - called when min_free_kbytes changes
- * or when memory is hot-{added|removed}
+ * setup_per_zone_wmarks - called when min_free_kbytes changes or when memory is hot-{added|removed}
  *
  * Ensures that the watermark[min,low,high] values for each zone are set
  * correctly with respect to min_free_kbytes.
@@ -8427,8 +8424,7 @@ void setup_per_zone_wmarks(void)
 	spin_unlock(&lock);
 
 	/*
-	 * The watermark size have changed so update the pcpu batch
-	 * and high limits or the limits may be inappropriate.
+	 * The watermark size have changed so update the pcpu batch and high limits or the limits may be inappropriate.
 	 */
 	for_each_zone(zone)
 		zone_pcp_update(zone, 0);
@@ -8542,8 +8538,7 @@ static void setup_min_unmapped_ratio(void)
 }
 
 
-int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write, void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
@@ -8614,8 +8609,7 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
  * cpu. It is the fraction of total pages in each zone that a hot per cpu
  * pagelist can have before it gets flushed back to buddy allocator.
  */
-int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *table,
-		int write, void *buffer, size_t *length, loff_t *ppos)
+int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *table,int write, void *buffer, size_t *length, loff_t *ppos)
 {
 	struct zone *zone;
 	int old_percpu_pagelist_high_fraction;
@@ -8802,8 +8796,7 @@ void *__init alloc_large_system_hash(const char *tablename,
  * cannot get removed (e.g., via memory unplug) concurrently.
  *
  */
-struct page *has_unmovable_pages(struct zone *zone, struct page *page,
-				 int migratetype, int flags)
+struct page *has_unmovable_pages(struct zone *zone, struct page *page, int migratetype, int flags)
 {
 	unsigned long iter = 0;
 	unsigned long pfn = page_to_pfn(page);
@@ -8943,8 +8936,7 @@ static inline void alloc_contig_dump_pages(struct list_head *page_list)
 #endif
 
 /* [start, end) must belong to a single zone. */
-static int __alloc_contig_migrate_range(struct compact_control *cc,
-					unsigned long start, unsigned long end)
+static int __alloc_contig_migrate_range(struct compact_control *cc,	unsigned long start, unsigned long end)
 {
 	/* This function is based on compact_zone() from compaction.c. */
 	unsigned int nr_reclaimed;
@@ -9022,8 +9014,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
  * pages which PFN is in [start, end) are allocated for the caller and
  * need to be freed with free_contig_range().
  */
-int alloc_contig_range(unsigned long start, unsigned long end,
-		       unsigned migratetype, gfp_t gfp_mask)
+int alloc_contig_range(unsigned long start, unsigned long end,  unsigned migratetype, gfp_t gfp_mask)
 {
 	unsigned long outer_start, outer_end;
 	unsigned int order;
@@ -9153,17 +9144,14 @@ done:
 }
 EXPORT_SYMBOL(alloc_contig_range);
 
-static int __alloc_contig_pages(unsigned long start_pfn,
-				unsigned long nr_pages, gfp_t gfp_mask)
+static int __alloc_contig_pages(unsigned long start_pfn, unsigned long nr_pages, gfp_t gfp_mask)
 {
 	unsigned long end_pfn = start_pfn + nr_pages;
 
-	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
-				  gfp_mask);
+	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE, gfp_mask);
 }
 
-static bool pfn_range_valid_contig(struct zone *z, unsigned long start_pfn,
-				   unsigned long nr_pages)
+static bool pfn_range_valid_contig(struct zone *z, unsigned long start_pfn,  unsigned long nr_pages)
 {
 	unsigned long i, end_pfn = start_pfn + nr_pages;
 	struct page *page;
@@ -9211,8 +9199,7 @@ static bool zone_spans_last_pfn(const struct zone *zone,
  *
  * Return: pointer to contiguous pages on success, or NULL if not successful.
  */
-struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,
-				int nid, nodemask_t *nodemask)
+struct page *alloc_contig_pages(unsigned long nr_pages, gfp_t gfp_mask,	int nid, nodemask_t *nodemask)
 {
 	unsigned long ret, pfn, flags;
 	struct zonelist *zonelist;
